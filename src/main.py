@@ -1,3 +1,5 @@
+# src/main.py
+
 from crawler import crawl_data
 from analyzer import analyze_data
 import config

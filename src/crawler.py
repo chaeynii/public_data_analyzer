@@ -6,14 +6,10 @@ from datetime import datetime
 from utils import parse, return_search_url, get_page_count
 from data_handlers import get_result_list 
 import config
-from multiprocessing import Pool
 
 def get_list(dType, df):
-    print(f"{dType} 수집을 시작합니다")
     search_url = return_search_url(dType)
-    # print(f"Requesting URL: {search_url}")
     page_count = get_page_count(parse(search_url))
-    # print(f"Total pages: {page_count}")
     
     # 속도 개선 이전
     for i in range(1, page_count + 1):
@@ -21,15 +17,6 @@ def get_list(dType, df):
         new_url = return_search_url(dType, currentPage=i)
         soup = parse(new_url)
         df = get_result_list(soup, dType, df)
-    
-    # Multiprocessing을 위한 Pool 설정
-    # with Pool(processes=4) as pool:
-    #     page_numbers = range(1, page_count + 1)
-    #     results = pool.map(fetch_page_data, [(dType, page, df) for page in page_numbers])
-
-    # # 결과 통합
-    # all_data = [item for sublist in results for item in sublist]
-    # df = pd.DataFrame(all_data)
     
     # 데이터 수집이 완료된 후 파일 저장
     org = config.REQUEST_PARAMS['org']
