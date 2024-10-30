@@ -2,7 +2,6 @@
 
 import os
 import pandas as pd
-import logging
 import re
 from datetime import datetime
 import config
@@ -10,15 +9,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 from bs4 import BeautifulSoup as bs
 
+from utils import setup_logging
+
 # 로그 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('data_crawler.log', encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
+logger = setup_logging('data_crawler.log')
 
 # html 파싱
 session = requests.Session()
@@ -28,7 +22,7 @@ def parse(url):
         req = session.get(url, timeout=20)
         req.raise_for_status()
     except requests.exceptions.RequestException as err:
-        print(f"Request error occurred: {err} - URL: {url}")
+        logger.error(f"Request error occurred: {err} - URL: {url}")
         return None
     return bs(req.text, "html.parser")
 
@@ -56,7 +50,7 @@ def get_page_count(soup):
     
     if not page_div:
         # Pagination이 없는 경우 검색 결과가 없다고 가정
-        print("No search results found.")
+        logger.warning("No search results found.")
         return 0  # 검색 결과가 없는 경우 0을 반환
     
     # 페이지 네비게이션이 있는데 a 태그가 없는 경우
@@ -82,7 +76,7 @@ def get_page_count(soup):
         page_count = int(numbers[0])
         
     except Exception as e:
-        print(f"An error occurred while trying to get the page count: {e}")
+        logger.error(f"An error occurred while trying to get the page count: {e}")
         page_count = 1  # 기본적으로 1페이지로 간주
     
     return page_count
@@ -146,8 +140,7 @@ def get_page_data(dType, soup):
                 cols = data_table_row.find_all(["th", "td"])
                 for th, td in zip(cols[::2], cols[1::2]):
                     if th.name != "th" or td.name != "td":
-                        msg = f"data table error. {info_url}\nth: {th}\ntd: {td}"
-                        logging.error(msg)
+                        logger.error(f"data table error. {info_url}\nth: {th}\ntd: {td}")
                         break
                     key = nonl(th.text)
                     value = nonl(td.text)
@@ -155,7 +148,6 @@ def get_page_data(dType, soup):
                         telno = re.search(r"telNo.+\"([\d.]+)\"", td.select_one("script").text).groups()[0]
                         value = tel_no_format(telno)
                     table_data[key] = value
-                    logging.debug("{}: [{}]".format(key, value))
             
             common_columns = {"설명", "등록일"}
             additional_columns = set()
@@ -169,12 +161,11 @@ def get_page_data(dType, soup):
             temp_data.update({key: table_data[key] for key in selected_columns})
             
             temp_list.append(temp_data)
-            logging.info(f"Data collected: Type={dType}, Title={title}, URL={config.BASE_URL + info_url}")
     
     return temp_list
     
 def get_list(dType, df):
-    print(f"{dType} 수집을 시작합니다")
+    logger.info(f"{dType} 수집을 시작합니다")
     base_url = return_search_url(dType)
     page_count = get_page_count(parse(base_url))
     
@@ -193,9 +184,9 @@ def get_list(dType, df):
             try:
                 page_df = pd.DataFrame(future.result())
                 df = pd.concat([df, page_df], ignore_index=True)
-                print(f"Completed page: {page}")
+                logger.info(f"Completed page: {page}")
             except Exception as exc:
-                print(f'Page {page} generated an exception: {exc}')
+                logger.error(f'Page {page} generated an exception: {exc}')
             
     org = config.REQUEST_PARAMS['org']
     output_dir = os.path.join('', 'data')
@@ -208,7 +199,7 @@ def get_list(dType, df):
 
 def save_to_excel(df, filepath):
     df.to_excel(filepath, index=False)
-    print(f"Data saved to {filepath}")
+    logger.info(f"Data saved to {filepath}")
 
 def main():
     data_types = {
