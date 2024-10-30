@@ -1,14 +1,7 @@
 # src/crawler.py
 
-import os
-import pandas as pd
-import re
-from datetime import datetime
-import config
+from common_imports import *
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import requests
-from bs4 import BeautifulSoup as bs
-
 from utils import setup_logging
 
 # 로그 설정
@@ -179,12 +172,11 @@ def get_list(dType, df):
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         future_to_page = {executor.submit(fetch_page_data, i): i for i in range(1, page_count + 1)}
-        for future in as_completed(future_to_page):
+        for future in tqdm(as_completed(future_to_page), total=page_count, desc=f"Collecting {dType} data"):
             page = future_to_page[future]
             try:
                 page_df = pd.DataFrame(future.result())
                 df = pd.concat([df, page_df], ignore_index=True)
-                logger.info(f"Completed page: {page}")
             except Exception as exc:
                 logger.error(f'Page {page} generated an exception: {exc}')
             
