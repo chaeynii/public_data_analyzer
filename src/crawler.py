@@ -1,8 +1,11 @@
 # src/crawler.py
 
 from common_imports import *
-from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from utils import setup_logging
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import tqdm
 
 # 로그 설정
 logger = setup_logging('data_crawler.log')
