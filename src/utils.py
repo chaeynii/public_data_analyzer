@@ -5,17 +5,6 @@ from bs4 import BeautifulSoup as bs
 import config
 import re
 
-# 속도 개선 이전
-# def parse(url):
-#     """입력된 URL을 HTML로 파싱"""
-#     try:
-#         req = requests.get(url, timeout=20)
-#         req.raise_for_status()
-#     except requests.exceptions.RequestException as err:
-#         print(f"Request error occurred: {err} - URL: {url}")
-#         return None
-#     return bs(req.text, "html.parser")
-
 session = requests.Session()
 
 def parse(url):
@@ -41,6 +30,10 @@ def return_search_url(dType, currentPage=1):
     })
     search_url = config.BASE_URL + '/tcs/dss/selectDataSetList.do?' + '&'.join([f"{key}={value}" for key, value in params.items()])
     return search_url
+
+def update_url_page(url, new_page):
+    """URL의 페이지 번호만 업데이트"""
+    return re.sub(r'currentPage=\d+', f'currentPage={new_page}', url)
 
 def get_page_count(soup):
     """총 페이지 수를 추출"""
