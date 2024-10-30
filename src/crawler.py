@@ -4,23 +4,19 @@ from common_imports import *
 
 from utils import setup_logging
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import tqdm
-
 # 로그 설정
 logger = setup_logging('data_crawler.log')
 
-# html 파싱
-session = requests.Session()
-def parse(url):
-    """입력된 URL을 HTML로 파싱"""
-    try:
-        req = session.get(url, timeout=20)
-        req.raise_for_status()
-    except requests.exceptions.RequestException as err:
-        logger.error(f"Request error occurred: {err} - URL: {url}")
-        return None
-    return bs(req.text, "html.parser")
+async def parse(url):
+    """입력된 URL을 HTML로 비동기적으로 파싱"""
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url, timeout=20) as response:
+                html = await response.text()
+                return bs(html, "html.parser")
+        except aiohttp.ClientError as err:
+            logger.error(f"Request error occurred: {err} - URL: {url}")
+            return None
 
 def return_search_url(dType, currentPage=1):
     """검색 URL을 생성"""
@@ -77,7 +73,7 @@ def get_page_count(soup):
     
     return page_count
 
-def get_page_data(dType, soup):
+async def get_page_data(dType, soup):
     result_list = soup.select("div.result-list")
     temp_list = []
     for result in result_list:
@@ -127,7 +123,7 @@ def get_page_data(dType, soup):
                     return "-".join(re.search(r"^(02.{0}|01.{1}|[0-9]{3})([0-9]+)([0-9]{4})", telno).groups())
                 return telno
 
-            detail_soup = parse(config.BASE_URL + info_url)
+            detail_soup = await parse(config.BASE_URL + info_url)
             board = detail_soup.select_one("#contents").select_one("div.data-search-view")
             temp_data["설명"] = board.select_one(".cont").text.strip()
             
@@ -160,28 +156,28 @@ def get_page_data(dType, soup):
     
     return temp_list
     
-def get_list(dType, df):
+async def get_list(dType, df):
     logger.info(f"{dType} 수집을 시작합니다")
     base_url = return_search_url(dType)
-    page_count = get_page_count(parse(base_url))
+    soup = await parse(base_url)
+    page_count = get_page_count(soup)
     
-    def fetch_page_data(page):
+    async def fetch_page_data(page):
         if page == 1:
             url = base_url
         else:
             url = update_url_page(base_url, page)
-        soup = parse(url)
-        return get_page_data(dType, soup)
+        soup = await parse(url)
+        return await get_page_data(dType, soup)
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        future_to_page = {executor.submit(fetch_page_data, i): i for i in range(1, page_count + 1)}
-        for future in tqdm(as_completed(future_to_page), total=page_count, desc=f"Collecting {dType} data"):
-            page = future_to_page[future]
-            try:
-                page_df = pd.DataFrame(future.result())
-                df = pd.concat([df, page_df], ignore_index=True)
-            except Exception as exc:
-                logger.error(f'Page {page} generated an exception: {exc}')
+    tasks = [fetch_page_data(i) for i in range(1, page_count + 1)]
+    for future in tqdm_asyncio.as_completed(tasks, total=page_count, desc=f"Collecting {dType} data"):
+        try:
+            result = await future
+            page_df = pd.DataFrame(result)
+            df = pd.concat([df, page_df], ignore_index=True)
+        except Exception as exc:
+            logger.error(f'Page generated an exception: {exc}')
             
     org = config.REQUEST_PARAMS['org']
     output_dir = os.path.join('', 'data')
@@ -196,7 +192,7 @@ def save_to_excel(df, filepath):
     df.to_excel(filepath, index=False)
     logger.info(f"Data saved to {filepath}")
 
-def main():
+async def main():
     data_types = {
         "FILE": ["데이터명", "설명", "확장자", "제공기관", "조회수", "다운로드", "키워드", "업데이트 주기", "수정일", "등록일", "주기성 데이터", "제공형태", "URL", "상세링크"],
         "API": ["데이터명", "설명", "데이터포맷", "제공기관", "조회수", "활용신청", "키워드", "수정일", "등록일", "상세링크"],
@@ -204,12 +200,11 @@ def main():
     }
 
     dataframes = {}
-
     for data_type, columns in data_types.items():
         df = pd.DataFrame(columns=columns)
-        dataframes[data_type] = get_list(data_type, df)
+        dataframes[data_type] = await get_list(data_type, df)
 
     return dataframes
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

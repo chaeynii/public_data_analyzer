@@ -1,10 +1,13 @@
 # src/main.py
 
+import asyncio
 from crawler import main as crawler_main
 
-def main():
+async def main():
     print("Starting data crawling...")
-    crawler_main()
+    result = await crawler_main()
+    print("Data crawling completed.")
+    return result
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

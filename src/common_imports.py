@@ -10,3 +10,6 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup as bs
 import config
+import aiohttp
+import asyncio
+from tqdm.asyncio import tqdm_asyncio
