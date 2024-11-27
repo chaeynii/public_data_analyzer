@@ -163,21 +163,32 @@ async def get_list(dType, df):
     page_count = get_page_count(soup)
     
     async def fetch_page_data(page):
-        if page == 1:
-            url = base_url
-        else:
-            url = update_url_page(base_url, page)
-        soup = await parse(url)
-        return await get_page_data(dType, soup)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                if page == 1:
+                    url = base_url
+                else:
+                    url = update_url_page(base_url, page)
+                soup = await parse(url)
+                return await get_page_data(dType, soup)
+            except Exception as exc:
+                if attempt < max_retries - 1:
+                    logger.warning(f'Page {page} 수집 중 오류 발생. 재시도 중... (시도 {attempt + 1}/{max_retries})')
+                    await asyncio.sleep(2)  # 재시도 전 잠시 대기
+                else:
+                    logger.error(f'Page {page} 수집 실패: {exc}')
+                    return None
 
     tasks = [fetch_page_data(i) for i in range(1, page_count + 1)]
     for future in tqdm_asyncio.as_completed(tasks, total=page_count, desc=f"Collecting {dType} data"):
         try:
             result = await future
-            page_df = pd.DataFrame(result)
-            df = pd.concat([df, page_df], ignore_index=True)
+            if result is not None:
+                page_df = pd.DataFrame(result)
+                df = pd.concat([df, page_df], ignore_index=True)
         except Exception as exc:
-            logger.error(f'Page generated an exception: {exc}')
+            logger.error(f'예상치 못한 오류 발생: {exc}')
             
     org = config.REQUEST_PARAMS['org']
     output_dir = os.path.join('', 'data')
