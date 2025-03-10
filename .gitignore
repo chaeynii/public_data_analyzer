@@ -1,10 +1,14 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-.vscode/
-.idea/
+
+# Django stuff:
 *.log
+
+# Environments
+venv
+
+# input / output folder
 data/
 input.json
 merged_data/
