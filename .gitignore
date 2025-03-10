@@ -6,3 +6,5 @@ __pycache__/
 .idea/
 *.log
 data/
+input.json
+merged_data/
