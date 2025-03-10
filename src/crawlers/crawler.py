@@ -1,8 +1,8 @@
 from config.common_imports import *
 from config.logging_config import setup_logging
+import config.settings
 
-# 로그 설정
-logger = setup_logging('data_crawler.log')
+logger = setup_logging("crawler.log")
 
 async def parse(url):
     """입력된 URL을 HTML로 비동기적으로 파싱"""
@@ -17,12 +17,12 @@ async def parse(url):
 
 def return_search_url(dType, currentPage=1):
     """검색 URL을 생성"""
-    params = config.REQUEST_PARAMS.copy()
+    params = config.settings.REQUEST_PARAMS.copy()
     params.update({
         'dType': dType,
         'currentPage': currentPage
     })
-    search_url = config.BASE_URL + '/tcs/dss/selectDataSetList.do?' + '&'.join([f"{key}={value}" for key, value in params.items()])
+    search_url = config.settings.BASE_URL + '/tcs/dss/selectDataSetList.do?' + '&'.join([f"{key}={value}" for key, value in params.items()])
     return search_url
 
 def update_url_page(url, new_page):
@@ -116,7 +116,7 @@ async def get_page_data(dType, soup):
                     return "-".join(re.search(r"^(02.{0}|01.{1}|[0-9]{3})([0-9]+)([0-9]{4})", telno).groups())
                 return telno
 
-            detail_soup = await parse(config.BASE_URL + info_url)
+            detail_soup = await parse(config.settings.BASE_URL + info_url)
             board = detail_soup.select_one("#contents").select_one("div.data-search-view")
             temp_data["설명"] = board.select_one(".cont").text.strip()
             
@@ -183,7 +183,7 @@ async def get_list(dType, df):
         except Exception as exc:
             logger.error(f'예상치 못한 오류 발생: {exc}')
             
-    org = config.REQUEST_PARAMS['org']
+    org = config.settings.REQUEST_PARAMS['org']
     output_dir = os.path.join('', 'data')
     os.makedirs(output_dir, exist_ok=True)
     today = datetime.now().strftime('%y%m%d')
