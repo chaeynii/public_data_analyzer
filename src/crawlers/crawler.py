@@ -1,8 +1,5 @@
-# src/crawler.py
-
-from common_imports import *
-
-from utils import setup_logging
+from config.common_imports import *
+from config.logging_config import setup_logging
 
 # 로그 설정
 logger = setup_logging('data_crawler.log')
@@ -21,12 +18,8 @@ async def parse(url):
 def return_search_url(dType, currentPage=1):
     """검색 URL을 생성"""
     params = config.REQUEST_PARAMS.copy()
-    org = config.REQUEST_PARAMS['org']
     params.update({
         'dType': dType,
-        'orgFullName': org,
-        'orgFilter': org,
-        'org': org,
         'currentPage': currentPage
     })
     search_url = config.BASE_URL + '/tcs/dss/selectDataSetList.do?' + '&'.join([f"{key}={value}" for key, value in params.items()])
@@ -163,7 +156,7 @@ async def get_list(dType, df):
     page_count = get_page_count(soup)
     
     async def fetch_page_data(page):
-        max_retries = 3
+        max_retries = 10
         for attempt in range(max_retries):
             try:
                 if page == 1:
@@ -200,14 +193,14 @@ async def get_list(dType, df):
     return df
 
 def save_to_excel(df, filepath):
-    df.to_excel(filepath, index=False)
+    df.to_excel(filepath, index=True)
     logger.info(f"Data saved to {filepath}")
 
 async def main():
     data_types = {
-        "FILE": ["데이터명", "설명", "확장자", "제공기관", "조회수", "다운로드", "키워드", "업데이트 주기", "수정일", "등록일", "주기성 데이터", "제공형태", "URL", "상세링크"],
-        "API": ["데이터명", "설명", "데이터포맷", "제공기관", "조회수", "활용신청", "키워드", "수정일", "등록일", "상세링크"],
-        "LINKED": ["데이터명", "설명", "확장자", "제공기관", "조회수", "키워드", "수정일", "등록일", "바로가기 횟수", "바로가기 링크", "상세링크"]
+        "FILE": ["데이터명", "설명", "확장자", "제공기관", "조회수", "다운로드", "키워드", "업데이트 주기", "수정일", "등록일", "주기성 데이터", "제공형태", "URL", "상세링크", "분류체계"],
+        "API": ["데이터명", "설명", "데이터포맷", "제공기관", "조회수", "활용신청", "키워드", "수정일", "등록일", "상세링크", "분류체계"],
+        "LINKED": ["데이터명", "설명", "확장자", "제공기관", "조회수", "키워드", "수정일", "등록일", "바로가기 횟수", "바로가기 링크", "상세링크", "분류체계"]
     }
 
     dataframes = {}
