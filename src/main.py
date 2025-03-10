@@ -1,7 +1,5 @@
-# src/main.py
-
-import asyncio
-from src.crawlers.crawler import main as crawler_main
+from config.common_imports import *
+from crawlers.org_crawler import main as crawler_main
 
 async def main():
     print("Starting data crawling...")

@@ -1,17 +1,19 @@
-import logging
 from config.common_imports import *
 
-# Logging Configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-LOG_FILE = os.getenv("LOG_FILE", "logs/crawler.log")
+LOG_DIR = os.getenv("LOG_DIR", "logs")
 
-logging.basicConfig(
-    level=LOG_LEVEL,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_FILE),
-        logging.StreamHandler()
-    ]
-)
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
 
-logger = logging.getLogger(__name__)
+def setup_logging(log_file_name):
+    """로깅 설정을 초기화하는 함수"""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(f"{LOG_DIR}/{log_file_name}", encoding='utf-8'),
+            logging.StreamHandler()
+        ]
+    )
+    return logging.getLogger(__name__)

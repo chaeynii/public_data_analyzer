@@ -1,9 +1,11 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
+/logs
 
 # Django stuff:
 *.log
+*.json
 
 # Environments
 .env
@@ -11,8 +13,6 @@ venv
 
 # input / output folder
 data/
-input.json
-merged_data/
 
 # 임시 생성
 memo
