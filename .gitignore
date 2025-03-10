@@ -15,5 +15,5 @@ venv
 data/
 
 # 임시 생성
-memo
+memo/
 merge_by_type.py
