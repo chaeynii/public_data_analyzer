@@ -41,7 +41,7 @@
 1. .env 환경변수 파일 생성
 
 ```
-BASE_URL = "https://www.data.go.kr"
+BASE_URL = "https://www.data.go.kr/tcs/dss/selectDataSetList.do?"
 ORG_NAME = ""
 ```
 

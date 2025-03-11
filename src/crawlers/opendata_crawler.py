@@ -22,7 +22,7 @@ def return_search_url(dType, currentPage=1):
         'dType': dType,
         'currentPage': currentPage
     })
-    search_url = BASE_URL + '/tcs/dss/selectDataSetList.do?' + '&'.join([f"{key}={value}" for key, value in params.items()])
+    search_url = BASE_URL+'&'.join([f"{key}={value}" for key, value in params.items()])
     return search_url
 
 def update_url_page(url, new_page):
