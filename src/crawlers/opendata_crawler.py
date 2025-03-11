@@ -1,6 +1,6 @@
 from config.common_imports import *
 from config.logging_config import setup_logging
-import config.settings
+from config.settings import BASE_URL, DATA_TYPES, REQUEST_PARAMS
 
 logger = setup_logging("crawler.log")
 
@@ -17,12 +17,12 @@ async def parse(url):
 
 def return_search_url(dType, currentPage=1):
     """검색 URL을 생성"""
-    params = config.settings.REQUEST_PARAMS.copy()
+    params = REQUEST_PARAMS.copy()
     params.update({
         'dType': dType,
         'currentPage': currentPage
     })
-    search_url = config.settings.BASE_URL + '/tcs/dss/selectDataSetList.do?' + '&'.join([f"{key}={value}" for key, value in params.items()])
+    search_url = BASE_URL + '/tcs/dss/selectDataSetList.do?' + '&'.join([f"{key}={value}" for key, value in params.items()])
     return search_url
 
 def update_url_page(url, new_page):
@@ -116,7 +116,7 @@ async def get_page_data(dType, soup):
                     return "-".join(re.search(r"^(02.{0}|01.{1}|[0-9]{3})([0-9]+)([0-9]{4})", telno).groups())
                 return telno
 
-            detail_soup = await parse(config.settings.BASE_URL + info_url)
+            detail_soup = await parse(BASE_URL + info_url)
             board = detail_soup.select_one("#contents").select_one("div.data-search-view")
             temp_data["설명"] = board.select_one(".cont").text.strip()
             
@@ -168,7 +168,7 @@ async def get_list(dType, df):
             except Exception as exc:
                 if attempt < max_retries - 1:
                     logger.warning(f'Page {page} 수집 중 오류 발생. 재시도 중... (시도 {attempt + 1}/{max_retries})')
-                    await asyncio.sleep(2)  # 재시도 전 잠시 대기
+                    await asyncio.sleep(5)  # 재시도 전 잠시 대기
                 else:
                     logger.error(f'Page {page} 수집 실패: {exc}')
                     return None
@@ -183,7 +183,7 @@ async def get_list(dType, df):
         except Exception as exc:
             logger.error(f'예상치 못한 오류 발생: {exc}')
             
-    org = config.settings.REQUEST_PARAMS['org']
+    org = REQUEST_PARAMS['org']
     output_dir = os.path.join('', 'data')
     os.makedirs(output_dir, exist_ok=True)
     today = datetime.now().strftime('%y%m%d')
@@ -197,10 +197,39 @@ def save_to_excel(df, filepath):
     logger.info(f"Data saved to {filepath}")
 
 async def main():
-    dataframes = {}
-    for data_type, columns in config.settings.DATA_TYPES.items():
-        df = pd.DataFrame(columns=columns)
-        dataframes[data_type] = await get_list(data_type, df)
+    # Load sub_organizations list
+    sub_orgs_path = os.path.join("data", "sub_organizations.json")
+    
+    # Check if file exists
+    if not os.path.exists(sub_orgs_path):
+        logger.error(f"'{sub_orgs_path}' 파일을 찾을 수 없습니다.")
+        return
+    
+    with open(sub_orgs_path, "r", encoding="utf-8") as file:
+        sub_orgs = json.load(file)
+
+    # If no organizations are found
+    if not sub_orgs:
+        logger.warning("기관 목록이 비어 있습니다.")
+        return
+
+    # Loop through each organization
+    for org in sub_orgs:
+        logger.info(f"📌 현재 기관: {org}")
+
+        # Update config settings dynamically
+        REQUEST_PARAMS["org"] = org
+
+        # Initialize dataframes
+        dataframes = {}
+
+        # Loop through each data type (FILE, API, LINKED)
+        for data_type, columns in DATA_TYPES.items():
+            df = pd.DataFrame(columns=columns)
+            dataframes[data_type] = await get_list(data_type, df)
+
+        # Log completion
+        logger.info(f"✅ 기관 '{org}' 데이터 크롤링 완료.")
 
     return dataframes
 

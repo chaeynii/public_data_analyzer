@@ -1,8 +1,7 @@
 from config.common_imports import *
-import config.settings
+from config.settings import BASE_URL
 from config.logging_config import setup_logging
 
-SetList_URL = config.settings.BASE_URL + "/tcs/dss/selectDataSetList.do"
 ORG_NAME = config.settings.ORG_NAME
 
 logger = setup_logging("org_crawler.log")
@@ -18,9 +17,9 @@ def org_crawler():
 
     try:
         # 1. url 접속
-        driver.get(SetList_URL)
+        driver.get(BASE_URL)
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "orgBtn")))
-        logger.info("1. SetList_URL 접속 성공")
+        logger.info("1. BASE_URL 접속 성공")
 
         # 2. Click "제공기관별 검색" button
         org_btn = driver.find_element(By.ID, "orgBtn")

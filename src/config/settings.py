@@ -10,7 +10,7 @@ REQUEST_PARAMS = {
     'sort': 'updtDt',
     'org': ORG_NAME,
     'currentPage': 1,
-    'perPage': 10,
+    'perPage': 40,
 }
 
 # 데이터 타입별 컬럼 설정
