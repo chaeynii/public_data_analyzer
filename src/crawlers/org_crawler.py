@@ -1,5 +1,5 @@
 from config.common_imports import *
-from config.settings import BASE_URL
+from config.settings import SEARCH_URL
 from config.logging_config import setup_logging
 
 ORG_NAME = config.settings.ORG_NAME
@@ -17,9 +17,9 @@ def org_crawler():
 
     try:
         # 1. url 접속
-        driver.get(BASE_URL)
+        driver.get(SEARCH_URL)
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "orgBtn")))
-        logger.info("1. BASE_URL 접속 성공")
+        logger.info("1. SEARCH_URL 접속 성공")
 
         # 2. Click "제공기관별 검색" button
         org_btn = driver.find_element(By.ID, "orgBtn")

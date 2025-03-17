@@ -4,74 +4,20 @@ from config.settings import BASE_URL, DATA_TYPES, REQUEST_PARAMS
 
 logger = setup_logging("crawler.log")
 
-async def parse(url):
-    """입력된 URL을 HTML로 비동기적으로 파싱"""
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url, timeout=20) as response:
-                html = await response.text()
-                return bs(html, "html.parser")
-        except aiohttp.ClientError as err:
-            logger.error(f"Request error occurred: {err} - URL: {url}")
-            return None
-
-def return_search_url(dType, currentPage=1):
-    """검색 URL을 생성"""
-    params = REQUEST_PARAMS.copy()
-    params.update({
-        'dType': dType,
-        'currentPage': currentPage
-    })
-    search_url = BASE_URL+'&'.join([f"{key}={value}" for key, value in params.items()])
-    return search_url
-
-def update_url_page(url, new_page):
-    """URL의 페이지 번호만 업데이트"""
-    return re.sub(r'currentPage=\d+', f'currentPage={new_page}', url)
-
-def get_page_count(soup):
-    """총 페이지 수를 추출"""
-    page_div = soup.select("nav.pagination")
-    
-    if not page_div:
-        # Pagination이 없는 경우 검색 결과가 없다고 가정
-        logger.warning("No search results found.")
-        return 0  # 검색 결과가 없는 경우 0을 반환
-    
-    # 페이지 네비게이션이 있는데 a 태그가 없는 경우
-    page_links = page_div[0].select("a")
-    
-    if not page_links:
-        # <strong> 태그가 하나만 존재하고 그 안에 '1'이라는 숫자가 있는 경우
-        active_page = page_div[0].select("strong.active")
-        if active_page and active_page[0].text.strip() == '1':
-            return 1  # 페이지가 1개뿐이므로 1을 반환
-        
-    try:
-        last_a = page_div[0].select("a.control.last")
-        
-        if not last_a:
-            # "마지막 페이지" 버튼이 없는 경우
-            count_a = len(page_div[0].select("a"))
-            return count_a + 1  # 해당 페이지에서 발견된 a 태그의 수를 페이지 수로 사용
-            
-        # a 태그의 onclick 속성에서 페이지 번호를 추출
-        onclick_value = last_a[0].get('onclick')
-        numbers = re.findall(r'\d+', onclick_value)
-        page_count = int(numbers[0])
-        
-    except Exception as e:
-        logger.error(f"An error occurred while trying to get the page count: {e}")
-        page_count = 1  # 기본적으로 1페이지로 간주
-    
-    return page_count
-
 async def get_page_data(dType, soup):
     result_list = soup.select("div.result-list")
     temp_list = []
     for result in result_list:
         li_list = result.find_all("li")
         for li in li_list:
+        # p.tag-area 태그 확인 및 category, provider_type 설정
+            tag_area = li.find("p", class_="tag-area")
+            category = None
+            provider_type = None
+            if tag_area:
+                labels = tag_area.find_all('span', class_='labelset')
+                category = labels[0].text.strip() if len(labels) > 0 else None
+                provider_type = labels[1].text.strip() if len(labels) > 1 else None
             dt = li.find("dl").find("dt")
             title = dt.find("span", class_="title").text.strip()
             info_url = dt.find("a")["href"]
@@ -97,7 +43,9 @@ async def get_page_data(dType, soup):
                 "제공기관": info_dict.get("제공기관", ""),
                 "수정일": info_dict.get("수정일", ""),
                 "조회수": info_dict.get("조회수", ""),
-                "키워드": info_dict.get("키워드", "")
+                "키워드": info_dict.get("키워드", ""),
+                "분류체계": category,   
+                "제공기관유형": provider_type
             }
             
             if dType == "API":
@@ -116,7 +64,7 @@ async def get_page_data(dType, soup):
                     return "-".join(re.search(r"^(02.{0}|01.{1}|[0-9]{3})([0-9]+)([0-9]{4})", telno).groups())
                 return telno
 
-            detail_soup = await parse(BASE_URL + info_url)
+            detail_soup = await url_utils.parse(BASE_URL + info_url)
             board = detail_soup.select_one("#contents").select_one("div.data-search-view")
             temp_data["설명"] = board.select_one(".cont").text.strip()
             
@@ -148,22 +96,23 @@ async def get_page_data(dType, soup):
             temp_list.append(temp_data)
     
     return temp_list
-    
-async def get_list(dType, df):
+
+async def get_data_list(dType, df):
     logger.info(f"{dType} 수집을 시작합니다")
-    base_url = return_search_url(dType)
-    soup = await parse(base_url)
-    page_count = get_page_count(soup)
+    SEARCH_URL = url_utils.return_search_url(dType)
+    
+    soup = await url_utils.parse(SEARCH_URL)
+    page_count = html_utils.get_page_count(soup)
     
     async def fetch_page_data(page):
         max_retries = 10
         for attempt in range(max_retries):
             try:
                 if page == 1:
-                    url = base_url
+                    url = SEARCH_URL
                 else:
-                    url = update_url_page(base_url, page)
-                soup = await parse(url)
+                    url = url_utils.update_url_page(SEARCH_URL, page)
+                soup = await url_utils.parse(url)
                 return await get_page_data(dType, soup)
             except Exception as exc:
                 if attempt < max_retries - 1:
@@ -186,49 +135,29 @@ async def get_list(dType, df):
     org = REQUEST_PARAMS['org']
     output_dir = os.path.join('', 'data')
     os.makedirs(output_dir, exist_ok=True)
-    today = datetime.now().strftime('%y%m%d')
-    filename = f"{org}_{dType}_공공데이터포털_크롤링_{today}.xlsx"
-    file_path = os.path.join(output_dir, filename)
-    save_to_excel(df, file_path)
+    file_utils.save_to_excel(df, os.path.join(output_dir, f"{org}_{dType}_공공데이터포털_크롤링_{datetime.now().strftime('%y%m%d')}.xlsx"))
     return df
 
-def save_to_excel(df, filepath):
-    df.to_excel(filepath, index=True)
-    logger.info(f"Data saved to {filepath}")
-
 async def main():
-    # Load sub_organizations list
+    # 기관 목록 JSON 파일 로드
     sub_orgs_path = os.path.join("data", "sub_organizations.json")
-    
-    # Check if file exists
-    if not os.path.exists(sub_orgs_path):
-        logger.error(f"'{sub_orgs_path}' 파일을 찾을 수 없습니다.")
-        return
-    
-    with open(sub_orgs_path, "r", encoding="utf-8") as file:
-        sub_orgs = json.load(file)
-
-    # If no organizations are found
+    sub_orgs = file_utils.load_json(sub_orgs_path)
     if not sub_orgs:
-        logger.warning("기관 목록이 비어 있습니다.")
         return
 
-    # Loop through each organization
+    # 기관별 크롤링 실행
+    dataframes = {}
     for org in sub_orgs:
         logger.info(f"📌 현재 기관: {org}")
 
-        # Update config settings dynamically
+        # 동적으로 요청 파라미터 업데이트
         REQUEST_PARAMS["org"] = org
 
-        # Initialize dataframes
-        dataframes = {}
-
-        # Loop through each data type (FILE, API, LINKED)
+        # 데이터 타입별 데이터프레임 초기화
         for data_type, columns in DATA_TYPES.items():
             df = pd.DataFrame(columns=columns)
-            dataframes[data_type] = await get_list(data_type, df)
+            dataframes[data_type] = await get_data_list(data_type, df)
 
-        # Log completion
         logger.info(f"✅ 기관 '{org}' 데이터 크롤링 완료.")
 
     return dataframes

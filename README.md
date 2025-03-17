@@ -39,9 +39,10 @@
 ## 사용 방법
 
 1. .env 환경변수 파일 생성
+(.env 값 변경 시 터미널 종료 후 재실행)
 
 ```
-BASE_URL = "https://www.data.go.kr/tcs/dss/selectDataSetList.do?"
+BASE_URL = "https://www.data.go.kr"
 ORG_NAME = ""
 ```
 

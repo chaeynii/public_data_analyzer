@@ -17,3 +17,5 @@ data/
 # 임시 생성
 memo/
 merge_by_type.py
+merged_data/
+opendata_crawler copy.py
