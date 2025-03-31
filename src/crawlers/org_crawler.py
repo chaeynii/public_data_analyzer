@@ -72,13 +72,13 @@ def org_crawler():
                 sub_name = sub.get_attribute("textContent").strip()
                 sub_organizations.append(sub_name)
 
-            # Save to JSON
-            with open("data/sub_organizations.json", "w", encoding="utf-8") as file:
-                json.dump(sub_organizations, file, ensure_ascii=False, indent=4)
-
         except:
-            logger.error(f"XXXXX No sub-organizations found under '{ORG_NAME}'.")
-            print(f"XXXXX No sub-organizations found under '{ORG_NAME}'.")
+            logger.warning(f"!!!!! No sub-organizations found under '{ORG_NAME}', saving ORG_NAME only.")
+            sub_organizations.append(ORG_NAME)
+
+        # Save to JSON
+        with open("data/sub_organizations.json", "w", encoding="utf-8") as file:
+            json.dump(sub_organizations, file, ensure_ascii=False, indent=4)
 
     finally:
         driver.quit()
