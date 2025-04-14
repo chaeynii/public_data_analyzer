@@ -19,3 +19,5 @@ async def main(run_org_crawler: bool = True):
 if __name__ == "__main__":
     # 기관 목록 크롤링 여부
     asyncio.run(main(run_org_crawler=False))
+    
+    
